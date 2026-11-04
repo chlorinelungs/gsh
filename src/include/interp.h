@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/limits.h>
+#include <sys/stat.h>
 
 #include <tools.h>
 
 #define GSH_RL_BUFSIZE 1024
 #define GSH_TOK_BUFSIZE 64
 #define GSH_TOK_DELIM " \t\r\n\a"
+
 
 char *gsh_read(void){
     char *line = NULL;
@@ -25,7 +28,7 @@ char *gsh_read(void){
     return line;
 }
 
-int gsh_launch(char **args){
+int gsh_launch(int argc, char **args){
     pid_t pid, wpid;
     pid = fork();
     int status;
@@ -42,7 +45,7 @@ int gsh_launch(char **args){
 	    wpid = waitpid(pid, &status, WUNTRACED);
 	}while(!WIFEXITED(status) && !WIFSIGNALED(status));
     }
-
+    
     return 1;
 }
 
@@ -53,7 +56,7 @@ char **gsh_split(char *line)
   char *token;
 
   if (!tokens) {
-    fprintf(stderr, "gsh: allocation error\n");
+    fprintf(stderr, RED "gsh: allocation error\n" RESET);
     exit(EXIT_FAILURE);
   }
 
@@ -66,7 +69,7 @@ char **gsh_split(char *line)
       bufsize += GSH_TOK_BUFSIZE;
       tokens = realloc(tokens, bufsize * sizeof(char*));
       if (!tokens) {
-        fprintf(stderr, "gsh: allocation error\n");
+        fprintf(stderr, RED "gsh: allocation error\n" RESET);
         exit(EXIT_FAILURE);
       }
     }
@@ -78,7 +81,7 @@ char **gsh_split(char *line)
 }
 
 
-int gsh_exec(char **args){
+int gsh_exec(int argc,char **args){
     int i;
     if(args[0] == NULL){
 	return 1;
@@ -86,22 +89,23 @@ int gsh_exec(char **args){
 
     for(i = 0; i < gsh_num_builtins(); i++){
 	if(strcmp(args[0], builtin_str[i]) == 0){
-	    return (*builtin_func[i])(args);
+	    return (*builtin_func[i])(argc,args);
 	}
     }
-    return gsh_launch(args);
+    return gsh_launch(argc,args);
 }
 
-void gsh_loop(void){
+void gsh_loop(int argc, char *argv[]){
     char *line;
     char **args;
     int status;
+    char cwd[PATH_MAX];
 
     do{
-	printf(":3c > ");
+	printf(GREEN ":3c > " BLUE "%s $: " RESET,getcwd(cwd, sizeof(cwd)));
 	line = gsh_read();
 	args = gsh_split(line);
-	status = gsh_exec(args);
+	status = gsh_exec(argc,args);
 	free(line);
 	free(args);
     }while(status);
